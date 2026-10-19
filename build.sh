@@ -201,6 +201,20 @@ MDIR_SRC="$MDIR/driver/product/kernel"
 # ---------------------------------------------------------------------------
 log "[4/10] integrating Kbase into the kernel tree"
 cp -a "$MDIR_SRC/drivers/." "$KDIR/drivers/"
+# Kbase also ships headers that live OUTSIDE drivers/ and must be installed into
+# the kernel tree, otherwise compilation dies e.g. with:
+#   fatal error: uapi/gpu/arm/midgard/mali_base_kernel.h: No such file or directory
+#   fatal error: linux/memory_group_manager.h: No such file or directory
+# That is include/uapi/gpu/arm/midgard/*.h (userspace ABI) plus the
+# include/linux/*.h shims (memory_group_manager, priority_control_manager,
+# protected_memory_allocator, protected_mode_switcher, dma-buf-test-exporter).
+# None of these names exist in upstream 5.10, so installing the whole include/
+# tree cannot clobber a kernel header.
+cp -a "$MDIR_SRC/include/." "$KDIR/include/"
+[ -f "$KDIR/include/uapi/gpu/arm/midgard/mali_base_kernel.h" ] \
+  || fail "Kbase UAPI headers not installed under $KDIR/include/uapi/gpu"
+[ -f "$KDIR/include/linux/memory_group_manager.h" ] \
+  || fail "Kbase headers not installed under $KDIR/include/linux"
 if [ ! -f "$KDIR/drivers/gpu/arm/Kconfig" ]; then
   mkdir -p "$KDIR/drivers/gpu/arm"
   cp -a "$MDIR_SRC/drivers/gpu/arm/." "$KDIR/drivers/gpu/arm/"
